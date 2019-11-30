@@ -1450,6 +1450,7 @@ create_hashjoin_plan(PlannerInfo *root,
 	List	   *hashclauses;
 	HashJoin   *join_plan;
 	Hash	   *hash_plan;
+	Hash	   *hash_plan_outer;
 
 	/* Get the join qual clauses (in plain expression form) */
 	if (IS_OUTER_JOIN(best_path->jpath.jointype))
@@ -1490,11 +1491,12 @@ create_hashjoin_plan(PlannerInfo *root,
 	 * Build the hash node and hash join node.
 	 */
 	hash_plan = make_hash(inner_plan);
+	hash_plan_outer = make_hash(outer_plan);
 	join_plan = make_hashjoin(tlist,
 							  joinclauses,
 							  otherclauses,
 							  hashclauses,
-							  outer_plan,
+							  (Plan *) hash_plan_outer,
 							  (Plan *) hash_plan,
 							  best_path->jpath.jointype);
 
