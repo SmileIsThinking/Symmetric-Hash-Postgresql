@@ -47,6 +47,7 @@ ExecHashJoin(HashJoinState *node)
 {
 	EState	   *estate;
 	//PlanState  *outerNode;
+	// 3130
 	HashState  *hashNode_sym;
 	HashState  *hashNode;
 	List	   *joinqual;
@@ -60,8 +61,6 @@ ExecHashJoin(HashJoinState *node)
 	uint32		hashvalue;
 	int			batchno;
 
-	PlanState  *outerNode_sym;
-	HashState  *hashNode;
 	HashJoinTable hashtable_sym;
 	TupleTableSlot *outerTupleSlot_sym;
 
@@ -212,7 +211,7 @@ ExecHashJoin(HashJoinState *node)
 		/*
 		* create the hash table
 		*/
-		hashtable_sym = ExecHashTableCreate((Hash *)hashNode->ps.plan,
+		hashtable_sym = ExecHashTableCreate((Hash *)hashNode_sym->ps.plan,
 			node->hj_HashOperators);
 		node->hj_HashTable_sym = hashtable_sym;
 
@@ -637,6 +636,7 @@ ExecEndHashJoin(HashJoinState *node)
  * hash value is stored at *hashvalue --- this is either originally computed,
  * or re-read from the temp file.
  */
+// outerNode: Hash head node
 static TupleTableSlot *
 ExecHashJoinOuterGetTuple(PlanState *outerNode,
 						  HashJoinState *hjstate,
@@ -701,6 +701,7 @@ ExecHashJoinOuterGetTuple(PlanState *outerNode,
 	/* Out of batches... */
 	return NULL;
 }
+
 
 /*
  * ExecHashJoinNewBatch
