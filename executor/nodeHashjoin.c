@@ -26,6 +26,9 @@
 static TupleTableSlot *ExecHashJoinOuterGetTuple(PlanState *outerNode,
 						  HashJoinState *hjstate,
 						  uint32 *hashvalue);
+static TupleTableSlot *ExecHashJoinOuterGetTupleSym(PlanState *outerNode,
+						  HashJoinState *hjstate,
+						  uint32 *hashvalue);
 static TupleTableSlot *ExecHashJoinGetSavedTuple(HashJoinState *hjstate,
 						  BufFile *file,
 						  uint32 *hashvalue,
@@ -702,6 +705,70 @@ ExecHashJoinOuterGetTuple(PlanState *outerNode,
 	return NULL;
 }
 
+static TupleTableSlot *
+ExecHashJoinOuterGetTupleSym(PlanState *outerNode,
+							 HashJoinState *hjstate,
+							 uint32 *hashvalue)
+{
+	HashJoinTable hashtable = hjstate->hj_HashTable_sym;
+	int			curbatch = hashtable->curbatch;
+	TupleTableSlot *slot;
+
+	if (curbatch == 0)
+	{							/* if it is the first pass */
+
+		/*
+		* Check to see if first outer tuple was already fetched by
+		* ExecHashJoin() and not used yet.
+		*/
+		slot = hjstate->hj_FirstOuterTupleSlot_sym;
+		if (!TupIsNull(slot))
+			hjstate->hj_FirstOuterTupleSlot_sym = NULL;
+		else
+			slot = ExecProcNode(outerNode);
+		if (!TupIsNull(slot))
+		{
+			/*
+			* We have to compute the tuple's hash value.
+			*/
+			ExprContext *econtext = hjstate->js.ps.ps_ExprContext;
+
+			econtext->ecxt_outertuple = slot;
+			*hashvalue = ExecHashGetHashValue(hashtable, econtext,
+				hjstate->hj_InnerHashKeys);  // 3130 InnerHashKeys
+
+			/* remember outer relation is not empty for possible rescan */
+			hjstate->hj_OuterNotEmpty_sym = true;
+
+			return slot;
+		}
+
+		/*
+		* We have just reached the end of the first pass. Try to switch to a
+		* saved batch.
+		*/
+		curbatch = ExecHashJoinNewBatch(hjstate);
+	}
+
+	/*
+	* Try to read from a temp file. Loop allows us to advance to new batches
+	* as needed.  NOTE: nbatch could increase inside ExecHashJoinNewBatch, so
+	* don't try to optimize this loop.
+	*/
+	while (curbatch < hashtable->nbatch)
+	{
+		slot = ExecHashJoinGetSavedTuple(hjstate,
+			hashtable->outerBatchFile[curbatch],
+			hashvalue,
+			hjstate->hj_OuterTupleSlot_sym);
+		if (!TupIsNull(slot))
+			return slot;
+		curbatch = ExecHashJoinNewBatch(hjstate);
+	}
+
+	/* Out of batches... */
+	return NULL;
+}
 
 /*
  * ExecHashJoinNewBatch
