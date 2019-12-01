@@ -598,7 +598,12 @@ ExecEndHashJoin(HashJoinState *node)
 		ExecHashTableDestroy(node->hj_HashTable);
 		node->hj_HashTable = NULL;
 	}
-
+	// 3130
+	if (node->hj_HashTable_sym)
+	{
+		ExecHashTableDestroy(node->hj_HashTable_sym);
+		node->hj_HashTable_sym = NULL;
+	}
 	/*
 	 * Free the exprcontext
 	 */
@@ -610,6 +615,9 @@ ExecEndHashJoin(HashJoinState *node)
 	ExecClearTuple(node->js.ps.ps_ResultTupleSlot);
 	ExecClearTuple(node->hj_OuterTupleSlot);
 	ExecClearTuple(node->hj_HashTupleSlot);
+	// 3130
+	ExecClearTuple(node->hj_OuterTupleSlot_sym);
+	ExecClearTuple(node->hj_HashTupleSlot_sym);
 
 	/*
 	 * clean up subtrees
