@@ -797,45 +797,91 @@ HeapTuple
 ExecScanHashBucket(HashJoinState *hjstate,
 				   ExprContext *econtext)
 {
-	List	   *hjclauses = hjstate->hashclauses;
-	HashJoinTable hashtable = hjstate->hj_HashTable;
-	HashJoinTuple hashTuple = hjstate->hj_CurTuple;
-	uint32		hashvalue = hjstate->hj_CurHashValue;
+	int sym = hjstate->hj_sym;
+	// due to sym hash, there are two cases.
+	if (sym == 0) {
+		List	   *hjclauses = hjstate->hashclauses;
+		HashJoinTable hashtable = hjstate->hj_HashTable_sym;
+		HashJoinTuple hashTuple = hjstate->hj_CurTuple_sym;
+		uint32		hashvalue = hjstate->hj_CurHashValue_sym;
 
-	/*
-	 * hj_CurTuple is NULL to start scanning a new bucket, or the address of
-	 * the last tuple returned from the current bucket.
-	 */
-	if (hashTuple == NULL)
-		hashTuple = hashtable->buckets[hjstate->hj_CurBucketNo];
-	else
-		hashTuple = hashTuple->next;
+		/*
+		* hj_CurTuple is NULL to start scanning a new bucket, or the address of
+		* the last tuple returned from the current bucket.
+		*/
+		if (hashTuple == NULL)
+			hashTuple = hashtable->buckets[hjstate->hj_CurBucketNo_sym];
+		else
+			hashTuple = hashTuple->next;
 
-	while (hashTuple != NULL)
-	{
-		if (hashTuple->hashvalue == hashvalue)
+		while (hashTuple != NULL)
 		{
-			HeapTuple	heapTuple = &hashTuple->htup;
-			TupleTableSlot *inntuple;
-
-			/* insert hashtable's tuple into exec slot so ExecQual sees it */
-			inntuple = ExecStoreTuple(heapTuple,
-									  hjstate->hj_HashTupleSlot_sym,
-									  InvalidBuffer,
-									  false);	/* do not pfree */
-			econtext->ecxt_innertuple = inntuple;
-
-			/* reset temp memory each time to avoid leaks from qual expr */
-			ResetExprContext(econtext);
-
-			if (ExecQual(hjclauses, econtext, false))
+			if (hashTuple->hashvalue == hashvalue)
 			{
-				hjstate->hj_CurTuple = hashTuple;
-				return heapTuple;
-			}
-		}
+				HeapTuple	heapTuple = &hashTuple->htup;
+				TupleTableSlot *inntuple;
 
-		hashTuple = hashTuple->next;
+				/* insert hashtable's tuple into exec slot so ExecQual sees it */
+				inntuple = ExecStoreTuple(heapTuple,
+					hjstate->hj_HashTupleSlot,
+					InvalidBuffer,
+					false);	/* do not pfree */
+				econtext->ecxt_innertuple = inntuple;
+
+				/* reset temp memory each time to avoid leaks from qual expr */
+				ResetExprContext(econtext);
+
+				if (ExecQual(hjclauses, econtext, false))
+				{
+					hjstate->hj_CurTuple_sym = hashTuple;
+					return heapTuple;
+				}
+			}
+
+			hashTuple = hashTuple->next;
+		}
+	}
+	else if (sym == 1) {
+		List	   *hjclauses = hjstate->hashclauses;
+		HashJoinTable hashtable = hjstate->hj_HashTable;
+		HashJoinTuple hashTuple = hjstate->hj_CurTuple;
+		uint32		hashvalue = hjstate->hj_CurHashValue;
+
+		/*
+		* hj_CurTuple is NULL to start scanning a new bucket, or the address of
+		* the last tuple returned from the current bucket.
+		*/
+		if (hashTuple == NULL)
+			hashTuple = hashtable->buckets[hjstate->hj_CurBucketNo];
+		else
+			hashTuple = hashTuple->next;
+
+		while (hashTuple != NULL)
+		{
+			if (hashTuple->hashvalue == hashvalue)
+			{
+				HeapTuple	heapTuple = &hashTuple->htup;
+				TupleTableSlot *inntuple;
+
+				/* insert hashtable's tuple into exec slot so ExecQual sees it */
+				inntuple = ExecStoreTuple(heapTuple,
+					hjstate->hj_HashTupleSlot_sym,
+					InvalidBuffer,
+					false);	/* do not pfree */
+				econtext->ecxt_innertuple = inntuple;
+
+				/* reset temp memory each time to avoid leaks from qual expr */
+				ResetExprContext(econtext);
+
+				if (ExecQual(hjclauses, econtext, false))
+				{
+					hjstate->hj_CurTuple = hashTuple;
+					return heapTuple;
+				}
+			}
+
+			hashTuple = hashTuple->next;
+		}
 	}
 
 	/*
@@ -844,56 +890,7 @@ ExecScanHashBucket(HashJoinState *hjstate,
 	return NULL;
 }
 
-HeapTuple
-ExecScanHashBucketSym(HashJoinState *hjstate,
-	ExprContext *econtext)
-{
-	List	   *hjclauses = hjstate->hashclauses;
-	HashJoinTable hashtable = hjstate->hj_HashTable_sym;
-	HashJoinTuple hashTuple = hjstate->hj_CurTuple_sym;
-	uint32		hashvalue = hjstate->hj_CurHashValue_sym;
 
-	/*
-	* hj_CurTuple is NULL to start scanning a new bucket, or the address of
-	* the last tuple returned from the current bucket.
-	*/
-	if (hashTuple == NULL)
-		hashTuple = hashtable->buckets[hjstate->hj_CurBucketNo_sym];
-	else
-		hashTuple = hashTuple->next;
-
-	while (hashTuple != NULL)
-	{
-		if (hashTuple->hashvalue == hashvalue)
-		{
-			HeapTuple	heapTuple = &hashTuple->htup;
-			TupleTableSlot *inntuple;
-
-			/* insert hashtable's tuple into exec slot so ExecQual sees it */
-			inntuple = ExecStoreTuple(heapTuple,
-				hjstate->hj_HashTupleSlot,
-				InvalidBuffer,
-				false);	/* do not pfree */
-			econtext->ecxt_innertuple = inntuple;
-
-			/* reset temp memory each time to avoid leaks from qual expr */
-			ResetExprContext(econtext);
-
-			if (ExecQual(hjclauses, econtext, false))
-			{
-				hjstate->hj_CurTuple_sym = hashTuple;
-				return heapTuple;
-			}
-		}
-
-		hashTuple = hashTuple->next;
-	}
-
-	/*
-	* no match
-	*/
-	return NULL;
-}
 /*
  * ExecHashTableReset
  *
