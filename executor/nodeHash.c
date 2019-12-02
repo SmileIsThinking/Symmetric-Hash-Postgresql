@@ -775,17 +775,16 @@ ExecHashGetBucketAndBatch(HashJoinTable hashtable,
 	uint32		nbuckets = (uint32) hashtable->nbuckets;
 	uint32		nbatch = (uint32) hashtable->nbatch;
 
-	if (nbatch > 1)
-	{
-		*bucketno = hashvalue % nbuckets;
-		/* since nbatch is a power of 2, can do MOD by masking */
-		*batchno = (hashvalue / nbuckets) & (nbatch - 1);
-	}
-	else
-	{
-		*bucketno = hashvalue % nbuckets;
-		*batchno = 0;
-	}
+	//if (nbatch > 1)
+	//{
+	//	*bucketno = hashvalue % nbuckets;
+	//	/* since nbatch is a power of 2, can do MOD by masking */
+	//	*batchno = (hashvalue / nbuckets) & (nbatch - 1);
+	//}
+
+	// 3130 assume there is only one batch
+	*bucketno = hashvalue % nbuckets;
+	*batchno = 0;
 }
 
 /*
