@@ -268,53 +268,53 @@ ExecHashJoin(HashJoinState *node)
 				node->hj_CurTuple_sym = NULL;
 
 			}
-		}
-		if (node->hj_TupleLeft_sym && node->hj_sym == 1) {
-			if (node->hj_NeedNewOuter)
+		}else if (node->hj_TupleLeft_sym && node->hj_sym == 1) {
+			if (node->hj_NeedNewOuter_sym)
 			{
-				outerTupleSlot = ExecHashJoinOuterGetTuple(hashNode.ps,
+				(void)ExecProcNode((PlanState *)hashNode_sym); // 3130
+				outerTupleSlot_sym = ExecHashJoinOuterGetTuple(hashNode_sym.ps,
 					node,
-					&hashvalue_sym);
-				if (TupIsNull(outerTupleSlot))
+					&hashvalue);
+				if (TupIsNull(outerTupleSlot_sym))
 				{
 					/* end of join */
 					// set TupleLeft and sym value
-					node->hj_TupleLeft = false;
-					node->hj_sym = 1;
+					node->hj_TupleLeft_sym = false;
+					node->hj_sym = 0;
 					return NULL;
 				}
 
-				node->js.ps.ps_OuterTupleSlot = outerTupleSlot;
-				econtext->ecxt_outertuple = outerTupleSlot;
-				node->hj_NeedNewOuter = false;
-				node->hj_MatchedOuter = false;
+				node->js.ps.ps_OuterTupleSlot = outerTupleSlot_sym;
+				econtext->ecxt_outertuple = outerTupleSlot_sym;
+				node->hj_NeedNewOuter_sym = false;
+				node->hj_MatchedOuter_sym = false;
 
 				/*
 				* now we have an outer tuple, find the corresponding bucket for
 				* this tuple from the hash table
 				*/
 				node->hj_CurHashValue = hashvalue;
-				ExecHashGetBucketAndBatch(hashtable_sym, hashvalue,
+				ExecHashGetBucketAndBatch(hashtable, hashvalue,
 					&node->hj_CurBucketNo, &batchno);
 				node->hj_CurTuple = NULL;
 
-				/*
-				* Now we've got an outer tuple and the corresponding hash bucket,
-				* but this tuple may not belong to the current batch.
-				*/
-				if (batchno != hashtable->curbatch)
-				{
-					/*
-					* Need to postpone this outer tuple to a later batch. Save it
-					* in the corresponding outer-batch file.
-					*/
-					Assert(batchno > hashtable->curbatch);
-					ExecHashJoinSaveTuple(ExecFetchSlotTuple(outerTupleSlot),
-						hashvalue,
-						&hashtable->outerBatchFile[batchno]);
-					node->hj_NeedNewOuter = true;
-					continue;		/* loop around for a new outer tuple */
-				}
+				///*
+				//* Now we've got an outer tuple and the corresponding hash bucket,
+				//* but this tuple may not belong to the current batch.
+				//*/
+				//if (batchno != hashtable->curbatch)
+				//{
+				//	/*
+				//	* Need to postpone this outer tuple to a later batch. Save it
+				//	* in the corresponding outer-batch file.
+				//	*/
+				//	Assert(batchno > hashtable->curbatch);
+				//	ExecHashJoinSaveTuple(ExecFetchSlotTuple(outerTupleSlot),
+				//		hashvalue,
+				//		&hashtable->outerBatchFile[batchno]);
+				//	node->hj_NeedNewOuter = true;
+				//	continue;		/* loop around for a new outer tuple */
+				//}
 			}
 		}
 
@@ -596,8 +596,8 @@ ExecInitHashJoin(HashJoin *node, EState *estate)
 	hjstate->hj_OuterNotEmpty_sym = false;
 
 	hjstate->hj_sym = 0;
-	hjstate->hj_TupleLeft = false;
-	hjstate->hj_TupleLeft_sym = false;
+	hjstate->hj_TupleLeft = true;
+	hjstate->hj_TupleLeft_sym = true;
 
 	return hjstate;
 }
