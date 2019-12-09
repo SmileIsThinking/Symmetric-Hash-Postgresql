@@ -40,6 +40,7 @@ static void ExecHashIncreaseNumBatches(HashJoinTable hashtable);
  *		stub for pro forma compliance
  * ----------------------------------------------------------------
  */
+// 3130 implement ExecHash to support pipeline execution
 TupleTableSlot *
 ExecHash(HashState *node)
 {
@@ -766,6 +767,7 @@ ExecHashGetHashValue(HashJoinTable hashtable,
  * nbatch is always a power of 2; we increase it only by doubling it.  This
  * effectively adds one more bit to the top of the batchno.
  */
+// 3130 disable muti-batch
 void
 ExecHashGetBucketAndBatch(HashJoinTable hashtable,
 						  uint32 hashvalue,
@@ -793,6 +795,7 @@ ExecHashGetBucketAndBatch(HashJoinTable hashtable,
  *
  * The current outer tuple must be stored in econtext->ecxt_outertuple.
  */
+// 3130 add support of HashTable_sym
 HeapTuple
 ExecScanHashBucket(HashJoinState *hjstate,
 				   ExprContext *econtext)

@@ -1491,7 +1491,7 @@ create_hashjoin_plan(PlannerInfo *root,
 	 * Build the hash node and hash join node.
 	 */
 	hash_plan = make_hash(inner_plan);
-	hash_plan_outer = make_hash(outer_plan);
+	hash_plan_outer = make_hash(outer_plan); // 3130
 	join_plan = make_hashjoin(tlist,
 							  joinclauses,
 							  otherclauses,
